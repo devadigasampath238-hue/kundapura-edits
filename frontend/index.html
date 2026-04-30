@@ -45,7 +45,7 @@
     .nav-logo-icon { width:34px; height:34px; background:var(--gold); display:flex; align-items:center; justify-content:center; font-size:.95rem; color:var(--ink); }
     .nav-links { display:flex; gap:2.5rem; }
     .nav-links a { font-size:.75rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); transition:color .2s; position:relative; }
-    .nav-links a::after { content:''; position:absolute; bottom:-4px; left:0; width:0; height:1px; background:var(--gold); transition:width .3s; }
+    .nav-links a::after { content:'absolute'; bottom:-4px; left:0; width:0; height:1px; background:var(--gold); transition:width .3s; }
     .nav-links a:hover { color:var(--cream); }
     .nav-links a:hover::after { width:100%; }
     .nav-cta { padding:10px 24px; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; transition:all .25s; }
@@ -140,7 +140,6 @@
     .filter-btn { padding:9px 20px; border:1px solid var(--border); color:var(--muted); font-size:.7rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; transition:all .2s; background:transparent; }
     .filter-btn:hover,.filter-btn.active { background:var(--gold); border-color:var(--gold); color:var(--ink); }
 
-    /* Portfolio grid — cinematic masonry feel */
     .portfolio-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
     .portfolio-grid .pcard:first-child { grid-column:span 2; }
     .pcard { position:relative; overflow:hidden; background:var(--surface); cursor:pointer; aspect-ratio:16/10; }
@@ -148,7 +147,6 @@
     .pcard video { width:100%; height:100%; object-fit:cover; transition:transform .7s cubic-bezier(.25,.46,.45,.94); display:block; }
     .pcard:hover video { transform:scale(1.05); }
 
-    /* Play button always visible, pulses */
     .pcard-play {
       position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
       width:60px; height:60px; border-radius:50%;
@@ -166,7 +164,6 @@
     }
     .pcard:hover .pcard-play { transform:translate(-50%,-50%) scale(1.12); background:var(--gold2); }
 
-    /* Overlay always present at bottom */
     .pcard-overlay {
       position:absolute; inset:0; z-index:2;
       background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.2) 45%,transparent 100%);
@@ -179,7 +176,6 @@
     .pcard-title { font-family:var(--ff-display); font-size:1.15rem; font-weight:600; color:#fff; line-height:1.3; }
     .pcard-views { font-size:.68rem; color:rgba(255,255,255,.5); margin-top:3px; }
 
-    /* Mute/unmute badge */
     .pcard-audio-btn {
       position:absolute; top:12px; right:12px; z-index:4;
       width:32px; height:32px; border-radius:50%;
@@ -196,7 +192,7 @@
     .portfolio-loading::before { content:''; width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
 
-    /* ── TESTIMONIALS — redesigned cards ── */
+    /* ── TESTIMONIALS ── */
     .testi-section { background:var(--ink); }
     .testi-intro { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:2rem; margin-bottom:4rem; }
     .testi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1px; }
@@ -239,7 +235,6 @@
     .testi-name { font-size:.82rem; font-weight:700; color:var(--cream); }
     .testi-role { font-size:.7rem; color:var(--muted); margin-top:1px; }
 
-    /* Live reviews from DB */
     .testi-live-section { margin-top:1px; }
     .testi-live-label {
       padding:1.2rem 2.4rem; background:var(--surface2); border:1px solid var(--border);
@@ -716,9 +711,16 @@
 </a>
 <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
-<script src="js/toast.js"></script>
-<script src="js/script.js"></script>
+<!-- NOTE: We removed the conflicting <script src="js/script.js"></script> and <script src="js/toast.js"></script> -->
+
 <script>
+// Basic fallback for toast alerts if your toast.js was removed
+const Toast = window.Toast || {
+  success: (msg) => alert("✅ " + msg),
+  error: (msg) => alert("❌ " + msg),
+  info: (msg) => alert("ℹ️ " + msg)
+};
+
 // ── NAVBAR ──────────────────────────────────────────────────────────────────
 const navbar  = document.getElementById('navbar');
 const backTop = document.getElementById('backTop');
@@ -748,7 +750,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     document.querySelectorAll('.pcard').forEach((c, i) => {
       const show = f === 'all' || c.dataset.cat === f;
       c.style.display = show ? '' : 'none';
-      // Re-apply first-child large span based on first visible
     });
     // Make first visible card span 2 cols on desktop
     const grid = document.getElementById('portfolioGrid');
@@ -763,7 +764,7 @@ function openModal(url, title, cat) {
   const modal = document.getElementById('videoModal');
   const vid   = document.getElementById('modalVideo');
   vid.src     = url;
-  vid.muted   = false;          // ← AUDIO ON in modal
+  vid.muted   = false;
   vid.volume  = 1;
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalCat').textContent   = cat;
@@ -771,6 +772,7 @@ function openModal(url, title, cat) {
   document.body.style.overflow = 'hidden';
   vid.play().catch(() => {});   // autoplay with sound
 }
+
 function closeModal() {
   const modal = document.getElementById('videoModal');
   const vid   = document.getElementById('modalVideo');
@@ -779,6 +781,7 @@ function closeModal() {
   modal.classList.remove('open');
   document.body.style.overflow = '';
 }
+
 document.getElementById('videoModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
@@ -801,7 +804,6 @@ async function loadPortfolio() {
       const card = document.createElement('div');
       card.className = 'pcard';
       card.dataset.cat = v.category;
-      // First card spans 2 cols
       if (i === 0 && window.innerWidth > 600) card.style.gridColumn = 'span 2';
 
       card.innerHTML = `
@@ -815,12 +817,10 @@ async function loadPortfolio() {
         <button class="pcard-audio-btn" title="Toggle audio" onclick="toggleCardAudio(event, this)">🔇</button>
       `;
 
-      // Hover: play muted preview
       const vid = card.querySelector('video');
       card.addEventListener('mouseenter', () => { vid.play().catch(()=>{}); });
       card.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; vid.muted = true; });
 
-      // Click: open modal with audio
       card.addEventListener('click', (e) => {
         if (e.target.classList.contains('pcard-audio-btn')) return;
         openModal(v.videoUrl, v.title, catLabels[v.category] || v.category);
@@ -829,7 +829,6 @@ async function loadPortfolio() {
       grid.appendChild(card);
     });
 
-    // Re-run reveal observer on new cards
     grid.querySelectorAll('.pcard').forEach(el => {
       el.style.opacity = '0';
       el.style.transform = 'translateY(20px)';
@@ -842,7 +841,7 @@ async function loadPortfolio() {
   }
 }
 
-// Toggle audio on the card preview itself (without opening modal)
+// Toggle audio on the card preview itself
 function toggleCardAudio(e, btn) {
   e.stopPropagation();
   const vid = btn.closest('.pcard').querySelector('video');
@@ -856,8 +855,6 @@ async function loadLiveReviews() {
   const grid = document.getElementById('liveReviewsGrid');
   const wrap = document.getElementById('liveReviewsWrap');
   try {
-    // Fetch approved reviews — use first video's id or all reviews endpoint
-    // We'll try a generic approved reviews approach
     const res  = await fetch('/api/reviews');
     const data = await res.json();
     const reviews = (data.reviews || []).filter(r => r.isApproved);
@@ -885,7 +882,6 @@ async function loadLiveReviews() {
         </div>
       `;
       grid.appendChild(card);
-      // Trigger reveal
       setTimeout(() => {
         card.style.opacity = '0'; card.style.transform = 'translateY(20px)';
         card.style.transition = `opacity .6s ease ${i * .1}s, transform .6s ease ${i * .1}s`;
@@ -904,21 +900,21 @@ async function submitSession(e) {
   const data    = Object.fromEntries(new FormData(form));
   btn.textContent = 'Sending…'; btn.disabled = true;
   try {
-    const res    = await fetch('/api/bookings/session', {
+    const res = await fetch('/api/bookings/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone, projectType: data.projectType, message: data.message }),
     });
     const result = await res.json();
-    if (result.success) {
+    if (res.ok && result.success !== false) {
       success.style.display = 'block';
       form.reset();
-      if (typeof Toast !== 'undefined') Toast.success(result.message || 'Booking received! 🎬');
+      Toast.success(result.message || 'Booking received! 🎬');
     } else {
-      if (typeof Toast !== 'undefined') Toast.error(result.message || 'Submission failed');
+      Toast.error(result.message || 'Submission failed');
     }
   } catch {
-    if (typeof Toast !== 'undefined') Toast.error('Network error. Please try WhatsApp instead.');
+    Toast.error('Network error. Please try WhatsApp instead.');
   } finally {
     btn.textContent = '✦ Submit & Book Session'; btn.disabled = false;
   }
