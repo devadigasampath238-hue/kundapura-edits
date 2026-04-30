@@ -130,13 +130,7 @@ app.use((err, req, res, _next) => {
     message: process.env.NODE_ENV === 'production' ? 'Server error' : err.message,
   });
 });
-// ── KEEP ALIVE (prevents Render free tier spin-down) ─────────────────────────
-const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-setInterval(() => {
-  fetch(`${SELF_URL}/api/health`)
-    .then(() => console.log('💓 Keep-alive ping'))
-    .catch(() => {});
-}, 14 * 60 * 1000); // ping every 14 minutes
+
 // ── START ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
