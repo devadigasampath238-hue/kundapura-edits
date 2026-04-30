@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — KE Studio</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-body">
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div class="admin-login-screen" id="loginSection">
+  <div class="login-bg-anim"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="ll-bracket">[</span>KE<span class="ll-accent">Studio</span><span class="ll-bracket">]</span>
+    </div>
+    <h2>Admin Panel</h2>
+    <p>Swagata! Sign in to manage your studio. 🎬</p>
+
+    <form onsubmit="adminLogin(event)" autocomplete="off">
+      <div class="login-fg">
+        <label for="a-username">Username</label>
+        <input type="text" id="a-username" placeholder="admin" required autocomplete="username" />
+        <span class="lfg-icon">👤</span>
+      </div>
+      <div class="login-fg">
+        <label for="a-password">Password</label>
+        <input type="password" id="a-password" placeholder="••••••••" required autocomplete="current-password" />
+        <span class="lfg-icon">🔒</span>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="login-btn" id="loginBtn">
+        <span class="lb-text">Sign In</span>
+        <span class="lb-arrow">→</span>
+      </button>
+    </form>
+
+    <a href="/" class="back-to-site">← Back to Website</a>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DASHBOARD
+══════════════════════════════════════════ -->
+<div class="admin-dashboard" id="dashboardSection" style="display:none;opacity:0">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="ll-bracket">[</span>KE<span class="ll-accent">Studio</span><span class="ll-bracket">]</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="snav-section">STUDIO</div>
+      <button class="admin-tab-btn active" data-tab="upload" onclick="switchTab('upload')">
+        <span class="stb-icon">⬆</span>
+        <span class="stb-label">Upload Video</span>
+        <span class="stb-glow"></span>
+      </button>
+      <button class="admin-tab-btn" data-tab="videos" onclick="switchTab('videos')">
+        <span class="stb-icon">🎬</span>
+        <span class="stb-label">Manage Videos</span>
+        <span class="stb-glow"></span>
+      </button>
+      <div class="snav-section">CLIENTS</div>
+      <button class="admin-tab-btn" data-tab="bookings" onclick="switchTab('bookings')">
+        <span class="stb-icon">📋</span>
+        <span class="stb-label">Bookings</span>
+        <span class="stb-badge" id="badge-bookings"></span>
+        <span class="stb-glow"></span>
+      </button>
+      <button class="admin-tab-btn" data-tab="reviews" onclick="switchTab('reviews')">
+        <span class="stb-icon">⭐</span>
+        <span class="stb-label">Reviews</span>
+        <span class="stb-glow"></span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/" target="_blank" class="sf-link">
+        <span>🌐</span><span class="stb-label">View Website</span>
+      </a>
+      <button class="sf-logout" onclick="adminLogout()">
+        <span>🚪</span><span class="stb-label">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="admin-main">
+
+    <!-- Top Bar -->
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbarTitle">Upload Video</div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-status" id="topbarStatus">
+          <span class="status-dot"></span>
+          <span>Live</span>
+        </div>
+        <button class="topbar-refresh" onclick="refreshCurrent()" title="Refresh">↻</button>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="admin-stats-bar">
+      <div class="admin-stat-card asc-blue">
+        <div class="asc-icon">🎬</div>
+        <div class="asc-data">
+          <span class="astat-num" id="stat-videos">—</span>
+          <span class="astat-label">Total Videos</span>
+        </div>
+        <div class="asc-glow"></div>
+      </div>
+      <div class="admin-stat-card asc-violet">
+        <div class="asc-icon">📋</div>
+        <div class="asc-data">
+          <span class="astat-num" id="stat-bookings">—</span>
+          <span class="astat-label">Bookings</span>
+        </div>
+        <div class="asc-glow"></div>
+      </div>
+      <div class="admin-stat-card asc-red highlight">
+        <div class="asc-icon">🔥</div>
+        <div class="asc-data">
+          <span class="astat-num" id="stat-new">—</span>
+          <span class="astat-label">New Leads</span>
+        </div>
+        <div class="asc-glow"></div>
+      </div>
+      <div class="admin-stat-card asc-gold">
+        <div class="asc-icon">⭐</div>
+        <div class="asc-data">
+          <span class="astat-num" id="stat-reviews">—</span>
+          <span class="astat-label">Reviews</span>
+        </div>
+        <div class="asc-glow"></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Upload Video ── -->
+    <div class="admin-tab-content active" id="tab-upload">
+      <div class="tab-header">
+        <h2>Upload New Video</h2>
+        <p>Add cinematic content to your portfolio. Channagide! 🎬</p>
+      </div>
+
+      <div class="admin-card upload-card">
+        <form onsubmit="uploadVideo(event)" enctype="multipart/form-data" id="uploadForm">
+
+          <div class="uf-grid">
+            <div class="fg">
+              <label for="v-title">Video Title <span class="req">*</span></label>
+              <input type="text" id="v-title" name="title" placeholder="Eg: Rohan & Priya Wedding Highlight" required maxlength="120" />
+            </div>
+            <div class="fg">
+              <label for="v-category">Category <span class="req">*</span></label>
+              <select id="v-category" name="category" required>
+                <option value="" disabled selected>Select category</option>
+                <option value="wedding">💍 Wedding Editing</option>
+                <option value="reels">📱 Instagram Reels</option>
+                <option value="youtube">🎥 YouTube Editing</option>
+                <option value="ads">📣 Business Ads</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="fg">
+            <label for="v-description">Description <span class="opt">(optional)</span></label>
+            <textarea id="v-description" name="description" rows="2" placeholder="Brief description…" maxlength="500"></textarea>
+          </div>
+
+          <!-- Drag & Drop Zone -->
+          <div class="upload-method-tabs">
+            <button type="button" class="umt active" id="umt-file" onclick="switchUploadMethod('file')">📁 Upload File</button>
+            <button type="button" class="umt" id="umt-url" onclick="switchUploadMethod('url')">🔗 Paste URL</button>
+          </div>
+
+          <div id="upload-file-section">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('videoFile').click()">
+              <div class="dz-inner">
+                <div class="dz-icon" id="dzIcon">📹</div>
+                <div class="dz-title" id="dzTitle">Drag & Drop your video here</div>
+                <div class="dz-sub" id="dzSub">or click to browse files</div>
+                <div class="dz-hint">MP4, WebM, MOV, AVI, MKV — <strong>Max 2GB</strong> · Direct to Cloudinary 🚀</div>
+              </div>
+              <div class="dz-overlay" id="dzOverlay">
+                <span>Drop to upload! 🎬</span>
+              </div>
+              <video id="videoPreview" class="dz-preview" style="display:none" muted preload="metadata"></video>
+            </div>
+            <input type="file" id="videoFile" name="videoFile" accept="video/*" style="display:none" />
+            <div class="file-info" id="fileInfo" style="display:none">
+              <span class="fi-name" id="fiName"></span>
+              <span class="fi-size" id="fiSize"></span>
+              <button type="button" class="fi-remove" onclick="removeFile()">✕</button>
+            </div>
+          </div>
+
+          <div id="upload-url-section" style="display:none">
+            <div class="fg url-input-wrap">
+              <label for="v-url">Video URL</label>
+              <input type="url" id="v-url" name="videoUrl" placeholder="https://example.com/video.mp4 or Cloudinary URL" />
+              <span class="url-icon">🔗</span>
+            </div>
+            <p class="url-hint">Paste a direct MP4 link, Cloudinary URL, or any direct video URL.</p>
+          </div>
+
+          <!-- Progress -->
+          <div class="upload-progress-wrap" id="uploadProgress" style="display:none">
+            <div class="upw-header">
+              <span class="upw-label" id="progressStatus">Preparing…</span>
+              <span class="upw-percent" id="progressText">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <div class="upw-steps">
+              <span class="upw-step active" id="step-upload">📤 Uploading to Cloudinary</span>
+              <span class="upw-step" id="step-process">⚙️ Saving to DB</span>
+              <span class="upw-step" id="step-done">✅ Complete</span>
+            </div>
+          </div>
+
+          <button type="submit" class="upload-submit-btn" id="uploadBtn">
+            <span class="usb-icon">⬆</span>
+            <span class="usb-text">Upload to Portfolio</span>
+            <span class="usb-glow"></span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── TAB: Manage Videos ── -->
+    <div class="admin-tab-content" id="tab-videos">
+      <div class="tab-header">
+        <h2>Manage Videos</h2>
+        <p>Edit, delete or toggle visibility of portfolio videos.</p>
+        <div class="th-actions">
+          <input type="text" class="search-input" id="videoSearch" placeholder="Search videos…" oninput="filterVideosList(this.value)" />
+        </div>
+      </div>
+      <div class="admin-card no-pad" id="adminVideosList">
+        <div class="admin-loading"><div class="al-ring"></div><span>Loading videos…</span></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Bookings ── -->
+    <div class="admin-tab-content" id="tab-bookings">
+      <div class="tab-header">
+        <h2>Booking Requests</h2>
+        <p>Manage expressing sessions and counsellor applications.</p>
+      </div>
+      <div class="booking-filters">
+        <button class="bfb active" data-bfilter="all" onclick="filterBookings('all')">All</button>
+        <button class="bfb" data-bfilter="session" onclick="filterBookings('session')">🎬 Sessions</button>
+        <button class="bfb" data-bfilter="counsellor" onclick="filterBookings('counsellor')">🧑‍💼 Counsellors</button>
+      </div>
+      <div class="admin-card no-pad" id="bookingsList">
+        <div class="admin-loading"><div class="al-ring"></div><span>Loading bookings…</span></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Reviews ── -->
+    <div class="admin-tab-content" id="tab-reviews">
+      <div class="tab-header">
+        <h2>Manage Reviews</h2>
+        <p>Approve, hide or delete customer reviews.</p>
+      </div>
+      <div class="admin-card no-pad" id="adminReviewsList">
+        <div class="admin-loading"><div class="al-ring"></div><span>Loading reviews…</span></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/toast.js"></script>
+<script src="js/admin.js"></script>
+<script>
+// ── Upload Method Switch ────────────────────────
+function switchUploadMethod(method) {
+  document.getElementById('upload-file-section').style.display = method === 'file' ? 'block' : 'none';
+  document.getElementById('upload-url-section').style.display  = method === 'url'  ? 'block' : 'none';
+  document.querySelectorAll('.umt').forEach(b => b.classList.remove('active'));
+  document.getElementById('umt-' + method).classList.add('active');
+  // Clear the other input
+  if (method === 'url')  { document.getElementById('videoFile').value = ''; removeFile(); }
+  if (method === 'file') { document.getElementById('v-url').value = ''; }
+}
+
+// ── Remove selected file ───────────────────────
+function removeFile() {
+  const fi = document.getElementById('fileInfo');
+  const prev = document.getElementById('videoPreview');
+  const dz  = document.getElementById('dropZone');
+  if (fi)  fi.style.display = 'none';
+  if (prev) { prev.src = ''; prev.style.display = 'none'; }
+  if (dz)  dz.classList.remove('has-file');
+  document.getElementById('dzIcon').textContent  = '📹';
+  document.getElementById('dzTitle').textContent = 'Drag & Drop your video here';
+  document.getElementById('dzSub').textContent   = 'or click to browse files';
+  document.getElementById('videoFile').value     = '';
+}
+
+// ── Sidebar Toggle ─────────────────────────────
+function toggleSidebar() {
+  document.getElementById('adminSidebar').classList.toggle('collapsed');
+}
+
+// ── Refresh current tab ────────────────────────
+function refreshCurrent() {
+  const active = document.querySelector('.admin-tab-btn.active');
+  if (active) switchTab(active.dataset.tab);
+}
+
+// ── Filter videos list by search ──────────────
+function filterVideosList(q) {
+  const rows = document.querySelectorAll('.admin-video-row');
+  rows.forEach(r => {
+    const txt = r.querySelector('.admin-video-info strong')?.textContent.toLowerCase() || '';
+    r.style.display = txt.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+window.switchUploadMethod = switchUploadMethod;
+window.removeFile = removeFile;
+window.toggleSidebar = toggleSidebar;
+window.refreshCurrent = refreshCurrent;
+window.filterVideosList = filterVideosList;
+</script>
+
+</body>
+</html>
