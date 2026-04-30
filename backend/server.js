@@ -149,3 +149,35 @@ app.listen(PORT, () => {
   console.log(`🚀 KE Studio running on port ${PORT}`);
   console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
 });
+app.post('/api/cloudinary/sign', require('./middleware/authMiddleware'), (req, res) => {
+  try {
+    const folder    = (req.body.folder || 'kundapura-edits').trim();
+    const timestamp = Math.round(Date.now() / 1000);
+
+    const paramsToSign = { folder, timestamp };
+
+    const toSign = Object.keys(paramsToSign)
+      .sort()
+      .map(k => `${k}=${paramsToSign[k]}`)
+      .join('&') + process.env.CLOUDINARY_API_SECRET;
+
+    // ── TEMPORARY: log what we're signing so you can verify ──
+    console.log('=== CLOUDINARY SIGN DEBUG ===');
+    console.log('paramsToSign:', paramsToSign);
+    console.log('toSign string:', toSign);
+    console.log('API_SECRET present:', !!process.env.CLOUDINARY_API_SECRET);
+    console.log('API_SECRET length:', process.env.CLOUDINARY_API_SECRET?.length);
+    // ── END DEBUG ──
+
+    const signature = crypto.createHash('sha256').update(toSign).digest('hex');
+
+    res.json({
+      success: true, signature, timestamp, folder,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey:    process.env.CLOUDINARY_API_KEY,
+    });
+  } catch (err) {
+    console.error('Sign error:', err);
+    res.status(500).json({ success: false, message: 'Signature failed' });
+  }
+});
