@@ -23,3 +23,5 @@ npm-debug.log*
 # Build artifacts
 dist/
 build/
+
+frontend/styles.css
