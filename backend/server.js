@@ -20,15 +20,16 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
-    cb(null, true); // allow all for now; tighten in production
+    // In production you may want to reject unknown origins:
+    // cb(new Error('CORS: origin not allowed'));
+    cb(null, true);
   },
   credentials: true,
 }));
 
 // ── BODY PARSERS ─────────────────────────────────────────────────────────────
-// NOTE: We intentionally do NOT set large body limits here.
-// Large video files are uploaded DIRECTLY to Cloudinary from the browser.
-// The backend only handles JSON/text payloads (credentials, metadata, etc.)
+// Videos are uploaded DIRECTLY to Cloudinary from the browser.
+// The backend only handles small JSON payloads (credentials, metadata).
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -49,7 +50,6 @@ async function connectDB() {
     console.log('✅ MongoDB connected');
   } catch (err) {
     console.error('❌ MongoDB connection error:', err.message);
-    // Retry after 5s
     setTimeout(connectDB, 5000);
   }
 }
@@ -63,36 +63,46 @@ mongoose.connection.on('disconnected', () => {
 connectDB();
 
 // ── CLOUDINARY SIGNATURE ENDPOINT ────────────────────────────────────────────
-// The browser requests a signed upload signature, then uploads DIRECTLY to
-// Cloudinary. The video never passes through our server. This completely
-// eliminates the 413 error and Render's body-size limit.
+// The browser requests a signed upload signature here, then uploads DIRECTLY
+// to Cloudinary. The video never passes through this server.
+//
+// ⚠️  CRITICAL SIGNING RULES (common source of CORS-looking errors):
+//   1. Only sign params that are actually sent in the FormData POST body.
+//   2. Do NOT include resource_type — it goes in the URL path, not the body.
+//   3. Sort params alphabetically before joining.
+//   4. Append the raw API secret at the end (no separator).
+//   5. SHA-256 hash the whole string.
+//
 app.post('/api/cloudinary/sign', require('./middleware/authMiddleware'), (req, res) => {
   try {
-    const { folder = 'kundapura-edits', public_id } = req.body;
-    const timestamp = Math.round(Date.now() / 1000);
+    const folder     = (req.body.folder || 'kundapura-edits').trim();
+    const public_id  = req.body.public_id || undefined;
+    const timestamp  = Math.round(Date.now() / 1000);
 
-    // Build params to sign
-    const params = {
-      timestamp,
+    // Only include params you will ALSO send in the FormData.
+    // resource_type is NOT a signable param — it lives in the upload URL path.
+    const paramsToSign = {
       folder,
+      timestamp,
       ...(public_id ? { public_id } : {}),
     };
 
-    // Create signature string: param1=val1&param2=val2&...SECRET
-    const toSign = Object.keys(params)
+    // Sort keys alphabetically, build "key=value&key=value" string, append secret
+    const toSign = Object.keys(paramsToSign)
       .sort()
-      .map(k => `${k}=${params[k]}`)
+      .map(k => `${k}=${paramsToSign[k]}`)
       .join('&') + process.env.CLOUDINARY_API_SECRET;
 
     const signature = crypto.createHash('sha256').update(toSign).digest('hex');
 
     res.json({
-      success: true,
+      success:   true,
       signature,
       timestamp,
-      cloudName:  process.env.CLOUDINARY_CLOUD_NAME,
-      apiKey:     process.env.CLOUDINARY_API_KEY,
       folder,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey:    process.env.CLOUDINARY_API_KEY,
+      // Never send CLOUDINARY_API_SECRET to the browser
     });
   } catch (err) {
     console.error('Sign error:', err);
@@ -110,9 +120,9 @@ app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    db:     mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     uptime: Math.floor(process.uptime()),
-    env: process.env.NODE_ENV,
+    env:    process.env.NODE_ENV,
   });
 });
 

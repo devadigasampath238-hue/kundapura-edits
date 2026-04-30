@@ -1,10 +1,10 @@
 // ─── KE Studio · admin.js ─────────────────────────────────────────────────────
-// KEY ARCHITECTURE CHANGE:
-//   Videos are uploaded DIRECTLY from the browser to Cloudinary via XHR.
-//   The backend never receives the video bytes — so 413 is impossible.
-//   Flow: 1) Request signed params from /api/cloudinary/sign
-//          2) POST directly to https://api.cloudinary.com/v1_1/<cloud>/video/upload
-//          3) On success, save { title, category, videoUrl, publicId } to /api/videos
+// UPLOAD ARCHITECTURE:
+//   1) POST /api/cloudinary/sign  → get { signature, timestamp, folder, cloudName, apiKey }
+//   2) POST https://api.cloudinary.com/v1_1/<cloudName>/video/upload  (direct, signed)
+//      FormData must contain EXACTLY the params that were signed — no more, no less.
+//      resource_type goes in the URL path, NOT in the FormData body.
+//   3) POST /api/videos  → save { title, category, videoUrl, publicId } to MongoDB
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
 
@@ -193,8 +193,6 @@ function animateStat(id, target) {
 })();
 
 // ── VIDEO UPLOAD — DIRECT TO CLOUDINARY ──────────────────────────────────────
-// This is the critical fix. The video bytes go DIRECTLY to Cloudinary's servers
-// using a signed upload. Express/Render never sees the file. No 413 possible.
 async function uploadVideo(e) {
   e.preventDefault();
   const form    = e.target;
@@ -204,9 +202,9 @@ async function uploadVideo(e) {
   const ptext   = document.getElementById('progressText');
   const pstatus = document.getElementById('progressStatus');
 
-  const title    = form.querySelector('[name="title"]')?.value.trim();
-  const category = form.querySelector('[name="category"]')?.value;
-  const videoUrl = form.querySelector('[name="videoUrl"]')?.value.trim();
+  const title     = form.querySelector('[name="title"]')?.value.trim();
+  const category  = form.querySelector('[name="category"]')?.value;
+  const videoUrl  = form.querySelector('[name="videoUrl"]')?.value.trim();
   const fileInput = document.getElementById('videoFile');
   const file      = fileInput?.files[0];
 
@@ -244,40 +242,53 @@ async function uploadVideo(e) {
   setProgress(0, 'Preparing upload…', pbar, ptext, pstatus);
 
   try {
-    // Step 1: Get signature from our backend
+    // Step 1 — Get signature from our backend
     setProgress(2, 'Getting upload signature…', pbar, ptext, pstatus);
     const signRes = await fetch(`${API}/cloudinary/sign`, {
       method: 'POST',
       headers: authH(),
       body: JSON.stringify({ folder: 'kundapura-edits' }),
     });
-    if (!signRes.ok) throw new Error('Failed to get upload signature');
+    if (!signRes.ok) {
+      const errData = await signRes.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to get upload signature');
+    }
     const { signature, timestamp, cloudName, apiKey, folder } = await signRes.json();
 
-    // Step 2: Build FormData for Cloudinary
+    // Step 2 — Build FormData for Cloudinary
+    //
+    // ⚠️  CRITICAL: The FormData fields must EXACTLY match what the backend signed.
+    //   - Include: file, api_key, timestamp, signature, folder
+    //     (and public_id if you sent one to /sign)
+    //   - Do NOT add resource_type here — it belongs in the upload URL path.
+    //   - Do NOT add upload_preset — it bypasses signature auth and causes CORS-like errors.
+    //   - Any extra unsigned field causes Cloudinary to reject with 401, which
+    //     the browser reports as a CORS error. This was the original bug.
+    //
     const fd = new FormData();
-    fd.append('file',       file);
-    fd.append('api_key',    apiKey);
-    fd.append('timestamp',  timestamp);
-    fd.append('signature',  signature);
-    fd.append('folder',     folder);
-    fd.append('resource_type', 'video');
+    fd.append('file',      file);
+    fd.append('api_key',   apiKey);
+    fd.append('timestamp', timestamp);
+    fd.append('signature', signature);
+    fd.append('folder',    folder);
+    // resource_type goes in the URL, not here ↓
 
     setProgress(5, 'Uploading to Cloudinary…', pbar, ptext, pstatus);
 
-    // Step 3: XHR with real progress (fetch doesn't support upload progress)
+    // Step 3 — XHR with real byte-level progress (fetch can't do upload progress)
+    // resource_type=video is set in the URL path ─ this is correct Cloudinary API usage.
     const uploadResult = await uploadWithProgress(
       `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
       fd,
       (percent) => {
-        const display = Math.round(5 + percent * 0.90); // 5% → 95%
+        const display = Math.round(5 + percent * 0.90); // maps 0-100% → 5-95%
         setProgress(display, `Uploading… ${display}%`, pbar, ptext, pstatus);
       }
     );
 
-    setProgress(96, 'Processing…', pbar, ptext, pstatus);
+    setProgress(96, 'Saving to database…', pbar, ptext, pstatus);
 
-    // Step 4: Save metadata to our DB
+    // Step 4 — Save metadata to our DB
     const saveRes = await fetch(`${API}/videos`, {
       method: 'POST',
       headers: authH(),
@@ -286,11 +297,14 @@ async function uploadVideo(e) {
         category,
         videoUrl:  uploadResult.secure_url,
         publicId:  uploadResult.public_id,
-        thumbnail: uploadResult.secure_url.replace('/upload/', '/upload/w_400,h_225,c_fill,so_2/').replace(/\.\w+$/, '.jpg'),
+        // Auto-generate a thumbnail at 2 seconds, 400×225
+        thumbnail: uploadResult.secure_url
+          .replace('/upload/', '/upload/w_400,h_225,c_fill,so_2/')
+          .replace(/\.\w+$/, '.jpg'),
       }),
     });
     const saveData = await saveRes.json();
-    if (!saveData.success) throw new Error(saveData.message || 'Failed to save video');
+    if (!saveData.success) throw new Error(saveData.message || 'Failed to save video metadata');
 
     setProgress(100, '✅ Done!', pbar, ptext, pstatus);
     if (pbar) pbar.style.background = 'linear-gradient(90deg,#00c864,#00ff99)';
@@ -311,7 +325,8 @@ async function uploadVideo(e) {
   }
 }
 
-// XHR-based upload that reports real byte-level progress
+// XHR-based upload that reports real byte-level progress.
+// Returns a Promise that resolves with the parsed Cloudinary response JSON.
 function uploadWithProgress(url, formData, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -323,26 +338,32 @@ function uploadWithProgress(url, formData, onProgress) {
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try { resolve(JSON.parse(xhr.responseText)); }
-        catch { reject(new Error('Invalid response from Cloudinary')); }
+        catch { reject(new Error('Invalid JSON response from Cloudinary')); }
       } else {
-        let msg = 'Cloudinary upload failed';
-        try { const r = JSON.parse(xhr.responseText); msg = r.error?.message || msg; } catch {}
+        // Cloudinary returns JSON error details even on failure
+        let msg = `Cloudinary upload failed (HTTP ${xhr.status})`;
+        try {
+          const r = JSON.parse(xhr.responseText);
+          msg = r.error?.message || msg;
+        } catch {}
         reject(new Error(msg));
       }
     });
 
-    xhr.addEventListener('error',   () => reject(new Error('Network error during upload')));
-    xhr.addEventListener('timeout', () => reject(new Error('Upload timed out')));
+    xhr.addEventListener('error',   () => reject(new Error('Network error during upload — check your internet connection')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — try a smaller file or a faster connection')));
+    xhr.addEventListener('abort',   () => reject(new Error('Upload was cancelled')));
 
     xhr.timeout = 30 * 60 * 1000; // 30 min timeout for large files
     xhr.open('POST', url);
+    // Do NOT set Content-Type manually — the browser sets it with the correct boundary for FormData
     xhr.send(formData);
   });
 }
 
 function setProgress(pct, label, pbar, ptext, pstatus) {
-  if (pbar)    pbar.style.width   = pct + '%';
-  if (ptext)   ptext.textContent  = pct + '%';
+  if (pbar)    pbar.style.width    = pct + '%';
+  if (ptext)   ptext.textContent   = pct + '%';
   if (pstatus) pstatus.textContent = label;
 }
 
