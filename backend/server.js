@@ -1,4 +1,3 @@
-// ─── KE Studio · server.js ────────────────────────────────────────────────────
 'use strict';
 
 require('dotenv').config();
@@ -26,7 +25,6 @@ app.use(cors({
 }));
 
 // ── BODY PARSERS ──────────────────────────────────────────────────────────────
-// Videos go DIRECTLY to Cloudinary from the browser — backend never sees the file.
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -60,9 +58,6 @@ mongoose.connection.on('disconnected', () => {
 connectDB();
 
 // ── CLOUDINARY SIGNATURE ENDPOINT ────────────────────────────────────────────
-// Defined ONCE only.
-// Sign only: folder + timestamp (+ public_id if given).
-// Do NOT sign resource_type — it belongs in the upload URL path only.
 app.post('/api/cloudinary/sign', require('./middleware/authMiddleware'), (req, res) => {
   try {
     const folder    = (req.body.folder || 'kundapura-edits').trim();
