@@ -94,9 +94,9 @@ router.delete('/:id', auth, async (req, res) => {
       try {
         const cloudinary = require('cloudinary').v2;
         cloudinary.config({
-          cloud_name: process.env.dkghxpwy8,
-          api_key:    process.env.135813856478986,
-          api_secret: process.env.QU6-mMAEvcdVNJtt9cvQWEquaOg,
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key:    process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
         });
         await cloudinary.uploader.destroy(video.publicId, { resource_type: 'video' });
       } catch (e) { console.warn('Cloudinary delete warning:', e.message); }
